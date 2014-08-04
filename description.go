@@ -1,23 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"github.com/kennygrant/sanitize"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
-)
-
-var (
-	// EXAMPLE:  COMS4995W001 => [COMS, 4995, W, 001]
-	re   = regexp.MustCompile(`(\w{4})(\w{4})(\w)(\w{3})`)
-	tags = regexp.MustCompile(`(?s:<.+?>)`)
-	// TODO: repent for this hidiousness
-	desc       = regexp.MustCompile(`[.\n]*Course Description</td>\n <td bgcolor=#DADADA>(?s:.*)<tr valign=top><td bgcolor=#99CCFF>Web Site</td>[.\n]*`)
-	web        = "Web Site"
-	courseDesc = "Course Description"
 )
 
 func bulletinWorker(prepChan, readyChan chan Course) {
@@ -56,17 +44,4 @@ func getDesc(page string) string {
 		return sanitize.Accents(s)
 	}
 	return ""
-}
-
-func (c Course) getDescriptionURL() string {
-	s := strings.Replace(c.Course, " ", "_", 6)
-	res := re.FindStringSubmatch(s)
-
-	// http://www.columbia.edu/cu/bulletin/uwb/subj/COMS/W4995-20143-001/
-	return fmt.Sprintf("http://www.columbia.edu/cu/bulletin/uwb/subj/%s/%s-%s-%s/",
-		res[1],
-		res[3]+res[2],
-		c.Term,
-		res[4],
-	)
 }
