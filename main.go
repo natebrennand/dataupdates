@@ -13,12 +13,10 @@ import (
 )
 
 const (
-	jsonFile        = "./doc.json"
+	jsonFile        = "./doc2.json"
 	courses_table   = "courses_t"
 	courses_table_2 = "courses_v2_t"
 )
-
-var done = make(chan bool)
 
 func getEnvVar(name string) string {
 	val := os.Getenv(name)
@@ -67,6 +65,31 @@ func readByteSkippingSpace(r io.Reader) (b byte, err error) {
 	}
 }
 
+type jsonList struct {
+	src, decoder io.Reader
+	srcUsed      bool
+}
+
+func (jl jsonList) Read(p []byte) (int, error) {
+	if !jl.srcUsed {
+		n, err := jl.decoder.Read(p)
+		if n > 0 || err != io.EOF {
+			if err == io.EOF {
+				// Don't return EOF yet. There may be more bytes in the remaining readers.
+				err = nil
+				jl.srcUsed = true
+			}
+			return n, err
+		}
+	}
+
+	n, err := jl.src.Read(p)
+	if n > 0 {
+		return n, err
+	}
+	return 0, io.EOF
+}
+
 func parseCourses(cChan chan Course, wg *sync.WaitGroup) {
 	// open file for parsing
 	file, err := os.OpenFile(jsonFile, os.O_RDONLY, 0644)
@@ -94,7 +117,9 @@ func parseCourses(cChan chan Course, wg *sync.WaitGroup) {
 		}
 		cChan <- c
 
-		r = io.MultiReader(dec.Buffered(), r)
+		// r = io.MultiReader(dec.Buffered(), r)
+		r = jsonList{src: r, decoder: dec.Buffered()}
+
 		if b, err := readByteSkippingSpace(r); err != nil {
 			log.Printf("broken, hit %s, err => %s", b, err.Error())
 			panic(err)
@@ -102,10 +127,10 @@ func parseCourses(cChan chan Course, wg *sync.WaitGroup) {
 			switch b {
 			case ',':
 				continue
-			case ']': // end
+			case ']':
 				log.Print("done reading")
-				wg.Done()
 				close(cChan)
+				wg.Done()
 				return
 			default:
 				panic("Invalid character in JSON data: " + string([]byte{b}))
