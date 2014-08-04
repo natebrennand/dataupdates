@@ -88,15 +88,11 @@ func parseCourses(cChan chan Course, wg *sync.WaitGroup) {
 		dec := json.NewDecoder(r)
 		if err := dec.Decode(&c); err == io.EOF {
 			log.Print("finished parsing json file")
-			wg.Done()
-			close(cChan)
 			return
 		} else if err != nil {
 			panic(err)
 		}
-		log.Print("sending down chan")
 		cChan <- c
-		log.Print("sent down chan")
 
 		r = io.MultiReader(dec.Buffered(), r)
 		if b, err := readByteSkippingSpace(r); err != nil {
@@ -105,10 +101,11 @@ func parseCourses(cChan chan Course, wg *sync.WaitGroup) {
 		} else {
 			switch b {
 			case ',':
-				log.Printf("after courses, %s, hit comma", c.Course)
 				continue
 			case ']': // end
 				log.Print("done reading")
+				wg.Done()
+				close(cChan)
 				return
 			default:
 				panic("Invalid character in JSON data: " + string([]byte{b}))
