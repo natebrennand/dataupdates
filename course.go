@@ -39,6 +39,11 @@ type window struct {
 }
 
 func (w window) parse(s string) string {
+	if w.lower < len(s) {
+		return ""
+	} else if w.upper < len(s) {
+		return strings.Replace(s[w.lower:], " ", "", -1)
+	}
 	if w.lower < 0 {
 		return strings.Replace(s[:w.upper], " ", "", -1)
 	} else if w.upper < 0 {
