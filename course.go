@@ -151,6 +151,11 @@ func (c Course) getDescriptionURL() string {
 	)
 }
 
+func zeroInt(s string) string {
+	n, _ := strconv.Atoi(s)
+	return strconv.FormatInt(int64(n), 10)
+}
+
 func (c *Course) fill() {
 	// t, err := time.Parse("15:04P", )
 	if c.Meets1 == "" {
@@ -179,8 +184,12 @@ func (c *Course) fill() {
 		c.Room1 = room.parse(s)
 	}
 
-	n, _ := strconv.Atoi(c.NumFixedUnits)
-	c.NumFixedUnits = strconv.FormatInt(int64(n), 10)
+	c.NumFixedUnits = zeroInt(c.NumFixedUnits)
+	c.MinUnits = zeroInt(c.MinUnits)
+	c.MaxUnits = zeroInt(c.MaxUnits)
+	c.CallNumber = zeroInt(c.CallNumber)
+	c.NumEnrolled = zeroInt(c.NumEnrolled)
+	c.MaxSize = zeroInt(c.MaxSize)
 }
 
 func (c Course) getCourseFull() (string, error) {
