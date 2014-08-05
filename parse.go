@@ -51,6 +51,7 @@ func parseCourses(jsonFile string, cChan chan Course, wg *sync.WaitGroup) {
 		} else if err != nil {
 			panic(err)
 		}
+		c.fill()
 		cChan <- c
 
 		r = io.MultiReader(dec.Buffered(), r)

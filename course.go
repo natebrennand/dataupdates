@@ -24,13 +24,33 @@ var (
 	desc       = regexp.MustCompile(`[.\n]*Course Description</td>\n <td bgcolor=#DADADA>(?s:.*)<tr valign=top><td bgcolor=#99CCFF>Web Site</td>[.\n]*`)
 	web        = "Web Site"
 	courseDesc = "Course Description"
+
+	meetsOn   = window{0, 7}
+	startTime = window{7, 13}
+	endTime   = window{14, 20}
+	building  = window{24, 35}
+	room      = window{35, -1}
 )
+
+type window struct {
+	lower, upper int
+}
+
+func (w window) parse(s string) string {
+	if w.lower < 0 {
+		return s[:w.upper]
+	} else if w.upper < 0 {
+		return s[w.lower:]
+	}
+	return s[w.lower:w.upper]
+}
 
 type Course struct {
 	Course string `json:",omitempty",db:"course"`
 	Course2Contents
 	SectionContents
 }
+
 type Course2 struct {
 	Course string `json:",omitempty",db:"course"`
 	Course2Contents
@@ -38,6 +58,7 @@ type Course2 struct {
 type Section struct {
 	Course string `json:",omitempty",db:"course"`
 	SectionContents
+	MeetsOn string
 }
 type Course2Contents struct {
 	CourseFull       string `json:",omitempty",db:"coursefull"`
@@ -63,10 +84,14 @@ type Course2Contents struct {
 	Description      string `json:",omitempty",db:"description"`
 }
 
-// TODO: parse dates
 type SectionContents struct {
-	SectionFull     string `json:"omitempty",db:"sectionfull"`
+	SectionFull     string `json:",omitempty",db:"sectionfull"`
 	Term            string `json:",omitempty",db:"term"`
+	MeetsOn1        string `json:",omitempty",db:"meetson1"`
+	StartTime1      string `json:",omitempty",db:"starttime1"`
+	EndTime1        string `json:",omitempty",db:"endtime1"`
+	Building1       string `json:",omitempty",db:"building1"`
+	Room1           string `json:",omitempty",db:"room1"`
 	CallNumber      string `json:",omitempty,int",db:"callnumber"`
 	CampusCode      string `json:",omitempty",db:"campuscode"`
 	CampusName      string `json:",omitempty",db:"campusname"`
@@ -124,6 +149,17 @@ func (c Course) getDescriptionURL() string {
 		c.Term,
 		section,
 	)
+}
+
+func (c *Course) fill() {
+	if c.Meets1 != "" {
+		s := c.Meets1
+		c.MeetsOn1 = meetsOn.parse(s)
+		c.StartTime1 = startTime.parse(s)
+		c.EndTime1 = endTime.parse(s)
+		c.Building1 = building.parse(s)
+		c.Room1 = room.parse(s)
+	}
 }
 
 func (c Course) getCourseFull() (string, error) {
