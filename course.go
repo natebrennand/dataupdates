@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -38,17 +39,21 @@ type window struct {
 
 func (w window) parse(s string) string {
 	if w.lower < 0 {
-		return s[:w.upper]
+		return strings.Replace(s[:w.upper], " ", "", -1)
 	} else if w.upper < 0 {
-		return s[w.lower:]
+		return strings.Replace(s[w.lower:], " ", "", -1)
 	}
-	return s[w.lower:w.upper]
+	return strings.Replace(s[w.lower:w.upper], " ", "", -1)
 }
 
 type Course struct {
-	Course string `json:",omitempty",db:"course"`
 	Course2Contents
 	SectionContents
+	Course     string `json:",omitempty",db:"course"`
+	ChargeMsg1 string `json:",omitempty",db:"chargemsg1"`
+	ChargeAmt1 string `json:",omitempty",db:"chargeamt1"`
+	ChargeMsg2 string `json:",omitempty",db:"chargemsg2"`
+	ChargeAmt2 string `json:",omitempty",db:"chargeamt2"`
 }
 
 type Course2 struct {
@@ -111,10 +116,6 @@ type SectionContents struct {
 	Instructor4Name string `json:",omitempty",db:"instructor4name"`
 	ExamMeet        string `json:",omitempty",db:"exammeet"`
 	ExamDate        string `json:",omitempty",db:"examdate"`
-	ChargeMsg1      string `json:",omitempty",db:"chargemsg1"`
-	ChargeAmt1      string `json:",omitempty",db:"chargeamt1"`
-	ChargeMsg2      string `json:",omitempty",db:"chargemsg2"`
-	ChargeAmt2      string `json:",omitempty",db:"chargeamt2"`
 }
 
 func (c Course) split() (Course2, Section) {
@@ -151,11 +152,22 @@ func (c Course) getDescriptionURL() string {
 }
 
 func (c *Course) fill() {
+	// t, err := time.Parse("15:04P", )
 	if c.Meets1 != "" {
 		s := c.Meets1
 		c.MeetsOn1 = meetsOn.parse(s)
-		c.StartTime1 = startTime.parse(s)
-		c.EndTime1 = endTime.parse(s)
+		t := startTime.parse(s)
+		if t != "" {
+			if tm, err := time.Parse("15:04P", t); err == nil {
+				c.StartTime1 = tm.Format("15:04:05")
+			}
+		}
+		t = endTime.parse(s)
+		if t != "" {
+			if tm, err := time.Parse("15:04P", t); err == nil {
+				c.EndTime1 = tm.Format("15:04:05")
+			}
+		}
 		c.Building1 = building.parse(s)
 		c.Room1 = room.parse(s)
 	}
