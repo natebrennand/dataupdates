@@ -118,21 +118,20 @@ type SectionContents struct {
 }
 
 func (c Course) split() (Course2, Section) {
-	// setting the section full
-	c.SectionFull = c.Course
 
 	// finding the proper 'Course'
 	res := re.FindStringSubmatch(strings.Replace(c.Course, " ", "_", 6))
 
 	// set up the "Course Full"
 	dept, deptNum, symbol := res[1], res[2], res[3]
-	c.CourseFull = dept + symbol + deptNum
 
 	return Course2{
 			Course:          dept + deptNum,
+			CourseFull:      dept + symbol + deptNum,
 			Course2Contents: c.Course2Contents,
 		}, Section{
 			Course:          dept + deptNum,
+			SectionFull:     c.Course,
 			SectionContents: c.SectionContents,
 		}
 }
