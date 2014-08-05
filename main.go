@@ -26,8 +26,8 @@ func getEnvVar(name string) string {
 func connectPG() *gorp.DbMap {
 	db, err := sql.Open("postgres", fmt.Sprintf("user=%s dbname=%s password=%s host=%s port=%s sslmode=disable",
 		getEnvVar("PG_USER"),
-		getEnvVar("PG_DBNAME"),
-		getEnvVar("PG_PASS"),
+		getEnvVar("PG_DB"),
+		getEnvVar("PG_PASSWORD"),
 		getEnvVar("PG_HOST"),
 		getEnvVar("PG_PORT"),
 	))

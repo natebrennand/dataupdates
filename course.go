@@ -52,16 +52,17 @@ type Course struct {
 }
 
 type Course2 struct {
-	Course string `json:",omitempty",db:"course"`
+	Course     string `json:",omitempty",db:"course"`
+	CourseFull string `json:",omitempty",db:"coursefull"`
 	Course2Contents
 }
 type Section struct {
-	Course string `json:",omitempty",db:"course"`
+	Course      string `json:",omitempty",db:"course"`
+	SectionFull string `json:",omitempty",db:"sectionfull"`
 	SectionContents
 	MeetsOn string
 }
 type Course2Contents struct {
-	CourseFull       string `json:",omitempty",db:"coursefull"`
 	PrefixName       string `json:",omitempty",db:"prefixname"`
 	DivisionCode     string `json:",omitempty",db:"divisioncode"`
 	DivisionName     string `json:",omitempty",db:"divisionname"`
@@ -85,7 +86,6 @@ type Course2Contents struct {
 }
 
 type SectionContents struct {
-	SectionFull     string `json:",omitempty",db:"sectionfull"`
 	Term            string `json:",omitempty",db:"term"`
 	MeetsOn1        string `json:",omitempty",db:"meetson1"`
 	StartTime1      string `json:",omitempty",db:"starttime1"`
