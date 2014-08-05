@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -65,7 +66,6 @@ type Section struct {
 	Course      string `json:",omitempty",db:"course"`
 	SectionFull string `json:",omitempty",db:"sectionfull"`
 	SectionContents
-	MeetsOn string
 }
 type Course2Contents struct {
 	PrefixName       string `json:",omitempty",db:"prefixname"`
@@ -153,24 +153,34 @@ func (c Course) getDescriptionURL() string {
 
 func (c *Course) fill() {
 	// t, err := time.Parse("15:04P", )
-	if c.Meets1 != "" {
+	if c.Meets1 == "" {
+		c.StartTime1 = "00:00:00"
+		c.EndTime1 = "00:00:00"
+	} else {
+
 		s := c.Meets1
 		c.MeetsOn1 = meetsOn.parse(s)
+
 		t := startTime.parse(s)
-		if t != "" {
-			if tm, err := time.Parse("15:04P", t); err == nil {
-				c.StartTime1 = tm.Format("15:04:05")
-			}
+		if tm, err := time.Parse("15:04P", t); err == nil {
+			c.StartTime1 = tm.Format("15:04:05")
+		} else {
+			c.StartTime1 = "00:00:00"
 		}
+
 		t = endTime.parse(s)
-		if t != "" {
-			if tm, err := time.Parse("15:04P", t); err == nil {
-				c.EndTime1 = tm.Format("15:04:05")
-			}
+		if tm, err := time.Parse("15:04P", t); err == nil {
+			c.EndTime1 = tm.Format("15:04:05")
+		} else {
+			c.EndTime1 = "00:00:00"
 		}
+
 		c.Building1 = building.parse(s)
 		c.Room1 = room.parse(s)
 	}
+
+	n, _ := strconv.Atoi(c.NumFixedUnits)
+	c.NumFixedUnits = strconv.FormatInt(int64(n), 10)
 }
 
 func (c Course) getCourseFull() (string, error) {
