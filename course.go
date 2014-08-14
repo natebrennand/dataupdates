@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/kennygrant/sanitize"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kennygrant/sanitize"
 )
 
 const (
@@ -17,11 +18,9 @@ const (
 )
 
 var (
-	httpSemaphore = make(chan int, MAX_REQUESTS)
-	// EXAMPLE:  COMS4995W001 => [COMS, 4995, W, 001]
-	re = regexp.MustCompile(`(\w{4})(\w{4})(\w)(\w{3})`)
-	// meant to match all HTML tags
-	tags = regexp.MustCompile(`(?s:<.+?>)`)
+	httpSemaphore = make(chan int, MAX_REQUESTS)                    // used to limit to 1 HTTP request at a time
+	re            = regexp.MustCompile(`(\w{4})(\w{4})(\w)(\w{3})`) // EXAMPLE:  COMS4995W001 => [COMS, 4995, W, 001]
+	tags          = regexp.MustCompile(`(?s:<.+?>)`)                // meant to match all HTML tags
 	// TODO: repent for this hidiousness
 	desc       = regexp.MustCompile(`[.\n]*Course Description</td>\n <td bgcolor=#DADADA>(?s:.*)<tr valign=top><td bgcolor=#99CCFF>Web Site</td>[.\n]*`)
 	web        = "Web Site"
@@ -124,7 +123,6 @@ type SectionContents struct {
 }
 
 func (c Course) split() (Course2, Section) {
-
 	// finding the proper 'Course'
 	res := re.FindStringSubmatch(strings.Replace(c.Course, " ", "_", 6))
 
@@ -160,6 +158,12 @@ func zeroInt(s string) string {
 	n, _ := strconv.Atoi(s)
 	return strconv.FormatInt(int64(n), 10)
 }
+func parseDate(t string) string {
+	if tm, err := time.Parse("15:04P", t); err == nil {
+		return tm.Format("15:04:05")
+	}
+	return "00:00:00"
+}
 
 func (c *Course) fill() {
 	// t, err := time.Parse("15:04P", )
@@ -170,21 +174,8 @@ func (c *Course) fill() {
 
 		s := c.Meets1
 		c.MeetsOn1 = meetsOn.parse(s)
-
-		t := startTime.parse(s)
-		if tm, err := time.Parse("15:04P", t); err == nil {
-			c.StartTime1 = tm.Format("15:04:05")
-		} else {
-			c.StartTime1 = "00:00:00"
-		}
-
-		t = endTime.parse(s)
-		if tm, err := time.Parse("15:04P", t); err == nil {
-			c.EndTime1 = tm.Format("15:04:05")
-		} else {
-			c.EndTime1 = "00:00:00"
-		}
-
+		c.StartTime1 = parseDate(startTime.parse(s))
+		c.EndTime1 = parseDate(endTime.parse(s))
 		c.Building1 = building.parse(s)
 		c.Room1 = room.parse(s)
 	}
@@ -208,7 +199,7 @@ func (c Course) getCourseFull() (string, error) {
 	return dept + symbol + deptNum, nil
 }
 
-func (c Course) getDescription() error {
+func (c *Course) getDescription() error {
 	url := c.getDescriptionURL()
 
 	httpSemaphore <- 1
@@ -217,6 +208,9 @@ func (c Course) getDescription() error {
 
 	if err != nil {
 		log.Printf("Error getting bulletin page, %s => %s", url, err.Error())
+		return fmt.Errorf("Error querying bulletin for course, %s", c.Course)
+	} else if resp.StatusCode/100 != 2 {
+		log.Printf("Error getting bulletin page, %s, status code => %d", url, resp.StatusCode)
 		return fmt.Errorf("Error querying bulletin for course, %s", c.Course)
 	}
 

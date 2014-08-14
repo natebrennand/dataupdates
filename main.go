@@ -3,11 +3,12 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/coopernurse/gorp"
-	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"sync"
+
+	"github.com/coopernurse/gorp"
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -69,7 +70,7 @@ func dbWorker(db *gorp.DbMap, readyCourse chan Course, wg *sync.WaitGroup, descC
 		} else {
 			// now we must get the description
 			if err := c.getDescription(); err != nil {
-				log.Print("Could not get description for %s, %s", c.Course, err.Error())
+				log.Printf("Could not get description for %s, %s", c.Course, err.Error())
 				continue
 			}
 			descCache[courseFull] = c.Description
