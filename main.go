@@ -101,9 +101,9 @@ func main() {
 		panic("must pass path to JSON file as an argument")
 	}
 	jsonFile := os.Args[1]
+	var wg sync.WaitGroup
 
 	// open database connection
-	var wg sync.WaitGroup
 	db := connectPG()
 	defer db.Db.Close()
 
