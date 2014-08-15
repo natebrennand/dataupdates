@@ -42,7 +42,7 @@ func connectPG() *gorp.DbMap {
 	gorpdb.AddTableWithName(Course2{}, "courses_v2_t").SetKeys(false, "CourseFull")
 	gorpdb.AddTableWithName(Section{}, "sections_v2_t").SetKeys(false, "SectionFull", "Term")
 
-	if gorpdb.CreateTablesIfNotExists() != nil {
+	if err = gorpdb.CreateTablesIfNotExists(); err != nil {
 		log.Fatalf("Error creating databases => %s", err.Error())
 	}
 	return gorpdb
