@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/coopernurse/gorp"
 	_ "github.com/lib/pq"
 )
 
@@ -24,7 +23,7 @@ func getEnvVar(name string) string {
 	return val
 }
 
-func connectPG() *gorp.DbMap {
+func connectPG() *sql.DB {
 	db, err := sql.Open("postgres", fmt.Sprintf("user=%s dbname=%s password=%s host=%s port=%s sslmode=disable",
 		getEnvVar("PG_USER"),
 		getEnvVar("PG_DB"),
@@ -36,57 +35,42 @@ func connectPG() *gorp.DbMap {
 		log.Fatalf("failed to connect to Postgres => %s", err.Error())
 	}
 
-	gorpdb := &gorp.DbMap{Db: db, Dialect: gorp.PostgresDialect{}}
-
-	gorpdb.AddTableWithName(Course{}, "courses_t").SetKeys(false, "Course", "Term")
-	gorpdb.AddTableWithName(Course2{}, "courses_v2_t").SetKeys(false, "CourseFull")
-	gorpdb.AddTableWithName(Section{}, "sections_v2_t").SetKeys(false, "SectionFull", "Term")
-
-	if err = gorpdb.CreateTablesIfNotExists(); err != nil {
-		log.Fatalf("Error creating databases => %s", err.Error())
-	}
-	return gorpdb
+	return db
 }
 
-func dbWorker(db *gorp.DbMap, readyCourse chan Course, wg *sync.WaitGroup, descCache map[string]string) {
+func dbWorker(db *sql.DB, readyCourse chan Course, wg *sync.WaitGroup, descCache map[string]string) {
 	var (
-		c         Course
-		more      bool
-		v2Course  Course2
-		v2Section Section
+		c              Course
+		more           bool
+		courseInserted = make(map[string]interface{})
 	)
 
 	for {
 		c, more = <-readyCourse
-		courseFull, err := c.getCourseFull()
-		if err != nil {
-			log.Printf("failed to insert course,  %s", c.Course)
+		if c.CourseFull == "" {
+			log.Printf("failed to insert course, %s", c.Course)
 			continue
 		}
 
-		cachedDesc, exists := descCache[courseFull]
-		if exists {
-			c.Description = cachedDesc
-		} else {
-			// now we must get the description
-			if err := c.getDescription(); err != nil {
-				log.Printf("Could not get description for %s, %s", c.Course, err.Error())
-				continue
-			}
-			descCache[courseFull] = c.Description
-			v2Course, _ = c.split()
-			if err := db.Insert(&v2Course); err != nil {
-				log.Printf("Failed to insert course_v2, %s, err => %s", v2Course.CourseFull, err.Error())
-			}
+		// now we must get the description
+		if err := c.getDescription(); err != nil {
+			log.Printf("Could not get description for %s, %s", c.Course, err.Error())
 		}
 
-		_, v2Section = c.split()
-		if err := db.Insert(&v2Section); err != nil {
-			log.Printf("Failed to insert section, %s, err => %s", v2Section.SectionFull, err.Error())
-		}
-
-		if err := db.Insert(&c); err != nil {
+		if err := c.Insert(db); err != nil {
 			log.Printf("While inserting course => %#v\n, database error => %s", c, err.Error())
+		}
+
+		if err := c.InsertSection(db); err != nil {
+			log.Printf("Failed to insert section, %s, err => %s", c.SectionFull, err.Error())
+		}
+
+		if _, exists := courseInserted[c.CourseFull]; !exists {
+			if err := c.InsertCourse2(db); err != nil {
+				log.Printf("Failed to insert course_v2, %s, err => %s", c.CourseFull, err.Error())
+			}
+			fmt.Println(c.CourseFull)
+			courseInserted[c.CourseFull] = 0
 		}
 
 		log.Printf("Saving %s to the db\n", c.Course)
@@ -105,7 +89,7 @@ func main() {
 
 	// open database connection
 	db := connectPG()
-	defer db.Db.Close()
+	defer db.Close()
 
 	// parse the json file of courses
 	courseChan := make(chan Course)

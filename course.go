@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -33,113 +34,6 @@ var (
 	room      = window{35, -1}
 )
 
-type window struct {
-	lower, upper int
-}
-
-func (w window) parse(s string) string {
-	if w.lower > len(s)-1 {
-		return ""
-	} else if w.upper > len(s)-1 {
-		return strings.Replace(s[w.lower:], " ", "", -1)
-	}
-	if w.lower < 0 {
-		return strings.Replace(s[:w.upper], " ", "", -1)
-	} else if w.upper < 0 {
-		return strings.Replace(s[w.lower:], " ", "", -1)
-	}
-	return strings.Replace(s[w.lower:w.upper], " ", "", -1)
-}
-
-type Course struct {
-	Course2Contents
-	SectionContents
-	Course     string `json:",omitempty",db:"course"`
-	ChargeMsg1 string `json:",omitempty",db:"chargemsg1"`
-	ChargeAmt1 string `json:",omitempty",db:"chargeamt1"`
-	ChargeMsg2 string `json:",omitempty",db:"chargemsg2"`
-	ChargeAmt2 string `json:",omitempty",db:"chargeamt2"`
-}
-
-type Course2 struct {
-	Course     string `json:",omitempty",db:"course"`
-	CourseFull string `json:",omitempty",db:"coursefull"`
-	Course2Contents
-}
-type Section struct {
-	Course      string `json:",omitempty",db:"course"`
-	SectionFull string `json:",omitempty",db:"sectionfull"`
-	SectionContents
-}
-type Course2Contents struct {
-	PrefixName       string `json:",omitempty",db:"prefixname"`
-	DivisionCode     string `json:",omitempty",db:"divisioncode"`
-	DivisionName     string `json:",omitempty",db:"divisionname"`
-	SchoolCode       string `json:",omitempty",db:"schoolcode"`
-	SchoolName       string `json:",omitempty",db:"schoolname"`
-	DepartmentCode   string `json:",omitempty",db:"departmentcode"`
-	DepartmentName   string `json:",omitempty",db:"departmentname"`
-	SubtermCode      string `json:",omitempty",db:"subtermcode"`
-	SubtermName      string `json:",omitempty",db:"subtermname"`
-	EnrollmentStatus string `json:",omitempty",db:"enrollmentstatus"`
-	NumFixedUnits    string `json:",omitempty,int",db:"numfixedunits"`
-	MinUnits         string `json:",omitempty,int",db:"minunits"`
-	MaxUnits         string `json:",omitempty,int",db:"maxunits"`
-	CourseTitle      string `json:",omitempty",db:"coursetitle"`
-	CourseSubtitle   string `json:",omitempty",db:"coursesubtitle"`
-	Approval         string `json:",omitempty",db:"approval"`
-	BulletinFlags    string `json:",omitempty",db:"bulletinflags"`
-	ClassNotes       string `json:",omitempty",db:"classnotes"`
-	PrefixLongname   string `json:",omitempty",db:"prefixlongname"`
-	Description      string `json:",omitempty",db:"description"`
-}
-
-type SectionContents struct {
-	Term            string `json:",omitempty",db:"term"`
-	MeetsOn1        string `json:",omitempty",db:"meetson1"`
-	StartTime1      string `json:",omitempty",db:"starttime1"`
-	EndTime1        string `json:",omitempty",db:"endtime1"`
-	Building1       string `json:",omitempty",db:"building1"`
-	Room1           string `json:",omitempty",db:"room1"`
-	CallNumber      string `json:",omitempty,int",db:"callnumber"`
-	CampusCode      string `json:",omitempty",db:"campuscode"`
-	CampusName      string `json:",omitempty",db:"campusname"`
-	NumEnrolled     string `json:",omitempty,int",db:"numenrolled"`
-	MaxSize         string `json:",omitempty,int",db:"maxsize"`
-	TypeCode        string `json:",omitempty",db:"typecode"`
-	TypeName        string `json:",omitempty",db:"typename"`
-	Meets1          string `json:",omitempty",db:"meets1"`
-	Meets2          string `json:",omitempty",db:"meets2"`
-	Meets3          string `json:",omitempty",db:"meets3"`
-	Meets4          string `json:",omitempty",db:"meets4"`
-	Meets5          string `json:",omitempty",db:"meets5"`
-	Meets6          string `json:",omitempty",db:"meets6"`
-	Instructor1Name string `json:",omitempty",db:"instructor1name"`
-	Instructor2Name string `json:",omitempty",db:"instructor2name"`
-	Instructor3Name string `json:",omitempty",db:"instructor3name"`
-	Instructor4Name string `json:",omitempty",db:"instructor4name"`
-	ExamMeet        string `json:",omitempty",db:"exammeet"`
-	ExamDate        string `json:",omitempty",db:"examdate"`
-}
-
-func (c Course) split() (Course2, Section) {
-	// finding the proper 'Course'
-	res := re.FindStringSubmatch(strings.Replace(c.Course, " ", "_", 6))
-
-	// set up the "Course Full"
-	dept, deptNum, symbol := res[1], res[2], res[3]
-
-	return Course2{
-			Course:          dept + deptNum,
-			CourseFull:      dept + symbol + deptNum,
-			Course2Contents: c.Course2Contents,
-		}, Section{
-			Course:          dept + deptNum,
-			SectionFull:     c.Course,
-			SectionContents: c.SectionContents,
-		}
-}
-
 func (c Course) getDescriptionURL() string {
 	s := strings.Replace(c.Course, " ", "_", 6)
 	res := re.FindStringSubmatch(s)
@@ -166,7 +60,6 @@ func parseDate(t string) string {
 }
 
 func (c *Course) fill() {
-	// t, err := time.Parse("15:04P", )
 	if c.Meets1 == "" {
 		c.StartTime1 = "00:00:00"
 		c.EndTime1 = "00:00:00"
@@ -186,9 +79,11 @@ func (c *Course) fill() {
 	c.CallNumber = zeroInt(c.CallNumber)
 	c.NumEnrolled = zeroInt(c.NumEnrolled)
 	c.MaxSize = zeroInt(c.MaxSize)
+
+	c.setCourseFull()
 }
 
-func (c Course) getCourseFull() (string, error) {
+func (c *Course) setCourseFull() (string, error) {
 	res := re.FindStringSubmatch(strings.Replace(c.Course, " ", "_", 6))
 	if len(res) != 5 {
 		return "", fmt.Errorf("Failed to parse given 'Course', %s. found %#v", c.Course, res)
@@ -196,7 +91,9 @@ func (c Course) getCourseFull() (string, error) {
 
 	// set up the "Course Full"
 	dept, deptNum, symbol := res[1], res[2], res[3]
-	return dept + symbol + deptNum, nil
+	courseFull := dept + symbol + deptNum
+	c.CourseFull = courseFull
+	return courseFull, nil
 }
 
 func (c *Course) getDescription() error {
@@ -229,5 +126,430 @@ func (c *Course) getDescription() error {
 	s := tags.ReplaceAllString(res[0], "")
 	s = strings.TrimSpace(strings.Replace(strings.Replace(s, web, "", 1), courseDesc, "", 1))
 	c.Description = sanitize.Accents(s)
+	return nil
+}
+
+type window struct {
+	lower, upper int
+}
+
+func (w window) parse(s string) string {
+	if w.lower > len(s)-1 {
+		return ""
+	} else if w.upper > len(s)-1 {
+		return strings.Replace(s[w.lower:], " ", "", -1)
+	}
+	if w.lower < 0 {
+		return strings.Replace(s[:w.upper], " ", "", -1)
+	} else if w.upper < 0 {
+		return strings.Replace(s[w.lower:], " ", "", -1)
+	}
+	return strings.Replace(s[w.lower:w.upper], " ", "", -1)
+}
+
+type Course struct {
+	Course2Contents
+	SectionContents
+	Course     string `json:",omitempty",db:"course"`
+	ChargeMsg1 string `json:",omitempty",db:"chargemsg1"`
+	ChargeAmt1 string `json:",omitempty",db:"chargeamt1"`
+	ChargeMsg2 string `json:",omitempty",db:"chargemsg2"`
+	ChargeAmt2 string `json:",omitempty",db:"chargeamt2"`
+}
+
+type Course2 struct {
+	Course string `json:",omitempty",db:"course"`
+	Course2Contents
+}
+
+type Course2Contents struct {
+	CourseFull       string `json:",omitempty"`
+	PrefixName       string `json:",omitempty"`
+	DivisionCode     string `json:",omitempty"`
+	DivisionName     string `json:",omitempty"`
+	SchoolCode       string `json:",omitempty"`
+	SchoolName       string `json:",omitempty"`
+	DepartmentCode   string `json:",omitempty"`
+	DepartmentName   string `json:",omitempty"`
+	SubtermCode      string `json:",omitempty"`
+	SubtermName      string `json:",omitempty"`
+	EnrollmentStatus string `json:",omitempty"`
+	NumFixedUnits    string `json:",omitempty,`
+	MinUnits         string `json:",omitempty,`
+	MaxUnits         string `json:",omitempty,`
+	CourseTitle      string `json:",omitempty"`
+	CourseSubtitle   string `json:",omitempty"`
+	Approval         string `json:",omitempty"`
+	BulletinFlags    string `json:",omitempty"`
+	ClassNotes       string `json:",omitempty"`
+	PrefixLongname   string `json:",omitempty"`
+	Description      string `json:",omitempty"`
+}
+
+type Section struct {
+	Course string `json:",omitempty",db:"course"`
+	SectionContents
+}
+
+type SectionContents struct {
+	SectionFull     string `json:",omitempty"`
+	Term            string `json:",omitempty"`
+	MeetsOn1        string `json:",omitempty"`
+	StartTime1      string `json:",omitempty"`
+	EndTime1        string `json:",omitempty"`
+	Building1       string `json:",omitempty"`
+	Room1           string `json:",omitempty"`
+	CallNumber      string `json:",omitempty,int"`
+	CampusCode      string `json:",omitempty"`
+	CampusName      string `json:",omitempty"`
+	NumEnrolled     string `json:",omitempty,int"`
+	MaxSize         string `json:",omitempty,int"`
+	TypeCode        string `json:",omitempty"`
+	TypeName        string `json:",omitempty"`
+	Meets1          string `json:",omitempty"`
+	Meets2          string `json:",omitempty"`
+	Meets3          string `json:",omitempty"`
+	Meets4          string `json:",omitempty"`
+	Meets5          string `json:",omitempty"`
+	Meets6          string `json:",omitempty"`
+	Instructor1Name string `json:",omitempty"`
+	Instructor2Name string `json:",omitempty"`
+	Instructor3Name string `json:",omitempty"`
+	Instructor4Name string `json:",omitempty"`
+	ExamMeet        string `json:",omitempty"`
+	ExamDate        string `json:",omitempty"`
+}
+
+func (c Course) Insert(db *sql.DB) error {
+	query := `INSERT INTO courses_t (
+	course,
+	ChargeMsg1,
+	ChargeAmt1,
+	ChargeMsg2,
+	ChargeAmt2,
+	prefixname,
+	divisioncode,
+	divisionname,
+	schoolcode,
+	schoolname,
+	departmentcode,
+	departmentname,
+	subtermcode,
+	subtermname,
+	enrollmentstatus,
+	numfixedunits,
+	minunits,
+	maxunits,
+	coursetitle,
+	coursesubtitle,
+	approval,
+	bulletinflags,
+	classnotes,
+	prefixlongname,
+	description,
+	term,
+	meetson1,
+	starttime1,
+	endtime1,
+	building1,
+	room1,
+	callnumber,
+	campuscode,
+	campusname,
+	numenrolled,
+	maxsize,
+	typecode,
+	typename,
+	meets1,
+	meets2,
+	meets3,
+	meets4,
+	meets5,
+	meets6,
+	instructor1name,
+	instructor2name,
+	instructor3name,
+	instructor4name,
+	exammeet,
+	examdate
+	) VALUES (
+	$1,
+	$2,
+	$3,
+	$4,
+	$5,
+	$6,
+	$7,
+	$8,
+	$9,
+	$10,
+	$11,
+	$12,
+	$13,
+	$14,
+	$15,
+	$16,
+	$17,
+	$18,
+	$19,
+	$20,
+	$21,
+	$22,
+	$23,
+	$24,
+	$25,
+	$26,
+	$27,
+	$28,
+	$29,
+	$30,
+	$31,
+	$32,
+	$33,
+	$34,
+	$35,
+	$36,
+	$37,
+	$38,
+	$39,
+	$40,
+	$41,
+	$42,
+	$43,
+	$44,
+	$45,
+	$46,
+	$47,
+	$48,
+	$49,
+	$50
+	)`
+	_, err := db.Exec(
+		query,
+		c.Course,
+		c.ChargeMsg1,
+		c.ChargeAmt1,
+		c.ChargeMsg2,
+		c.ChargeAmt2,
+		c.PrefixName,
+		c.DivisionCode,
+		c.DivisionName,
+		c.SchoolCode,
+		c.SchoolName,
+		c.DepartmentCode,
+		c.DepartmentName,
+		c.SubtermCode,
+		c.SubtermName,
+		c.EnrollmentStatus,
+		c.NumFixedUnits,
+		c.MinUnits,
+		c.MaxUnits,
+		c.CourseTitle,
+		c.CourseSubtitle,
+		c.Approval,
+		c.BulletinFlags,
+		c.ClassNotes,
+		c.PrefixLongname,
+		c.Description,
+		c.Term,
+		c.MeetsOn1,
+		c.StartTime1,
+		c.EndTime1,
+		c.Building1,
+		c.Room1,
+		c.CallNumber,
+		c.CampusCode,
+		c.CampusName,
+		c.NumEnrolled,
+		c.MaxSize,
+		c.TypeCode,
+		c.TypeName,
+		c.Meets1,
+		c.Meets2,
+		c.Meets3,
+		c.Meets4,
+		c.Meets5,
+		c.Meets6,
+		c.Instructor1Name,
+		c.Instructor2Name,
+		c.Instructor3Name,
+		c.Instructor4Name,
+		c.ExamMeet,
+		c.ExamDate,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to insert courses_t, %#v, => %s", c, err.Error())
+	}
+	return nil
+}
+
+func (c Course) InsertCourse2(db *sql.DB) error {
+	query := `INSERT INTO courses_v2_t (
+	course,
+	coursefull,
+	prefixname,
+	divisioncode,
+	divisionname,
+	schoolcode,
+	schoolname,
+	departmentcode,
+	departmentname,
+	subtermcode,
+	subtermname,
+	enrollmentstatus,
+	numfixedunits,
+	minunits,
+	maxunits,
+	coursetitle,
+	coursesubtitle,
+	approval,
+	bulletinflags,
+	classnotes,
+	prefixlongname,
+	description
+	) VALUES (
+	$1,
+	$2,
+	$3,
+	$4,
+	$5,
+	$6,
+	$7,
+	$8,
+	$9,
+	$10,
+	$11,
+	$12,
+	$13,
+	$14,
+	$15,
+	$16,
+	$17,
+	$18,
+	$19,
+	$20,
+	$21,
+	$22
+	)`
+	_, err := db.Exec(
+		query,
+		c.Course,
+		c.PrefixName,
+		c.CourseFull,
+		c.DivisionCode,
+		c.DivisionName,
+		c.SchoolCode,
+		c.SchoolName,
+		c.DepartmentCode,
+		c.DepartmentName,
+		c.SubtermCode,
+		c.SubtermName,
+		c.EnrollmentStatus,
+		c.NumFixedUnits,
+		c.MinUnits,
+		c.MaxUnits,
+		c.CourseTitle,
+		c.CourseSubtitle,
+		c.Approval,
+		c.BulletinFlags,
+		c.ClassNotes,
+		c.PrefixLongname,
+		c.Description,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to insert courses_v2_t, %#v, => %s", c.Course2Contents, err.Error())
+	}
+
+	return nil
+}
+
+func (c Course) InsertSection(db *sql.DB) error {
+	query := `INSERT INTO sections_v2_t (
+	course,
+	term,
+	meetson1,
+	starttime1,
+	endtime1,
+	building1,
+	room1,
+	callnumber,
+	campuscode,
+	campusname,
+	numenrolled,
+	maxsize,
+	typecode,
+	typename,
+	meets1,
+	meets2,
+	meets3,
+	meets4,
+	meets5,
+	meets6,
+	instructor1name,
+	instructor2name,
+	instructor3name,
+	instructor4name,
+	exammeet,
+	examdate
+	) VALUES (
+		$1,
+		$2,
+		$3,
+		$4,
+		$5,
+		$6,
+		$7,
+		$8,
+		$9,
+		$10,
+		$11,
+		$12,
+		$13,
+		$14,
+		$15,
+		$16,
+		$17,
+		$18,
+		$19,
+		$20,
+		$21,
+		$22,
+		$23,
+		$24,
+		$25,
+		$26
+	)`
+	_, err := db.Exec(
+		query,
+		c.Course,
+		c.Term,
+		c.MeetsOn1,
+		c.StartTime1,
+		c.EndTime1,
+		c.Building1,
+		c.Room1,
+		c.CallNumber,
+		c.CampusCode,
+		c.CampusName,
+		c.NumEnrolled,
+		c.MaxSize,
+		c.TypeCode,
+		c.TypeName,
+		c.Meets1,
+		c.Meets2,
+		c.Meets3,
+		c.Meets4,
+		c.Meets5,
+		c.Meets6,
+		c.Instructor1Name,
+		c.Instructor2Name,
+		c.Instructor3Name,
+		c.Instructor4Name,
+		c.ExamMeet,
+		c.ExamDate,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to insert sections_v2_t, %#v, => %s", c.SectionContents, err.Error())
+	}
 	return nil
 }

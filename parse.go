@@ -71,5 +71,6 @@ func parseCourses(jsonFile string, cChan chan Course, wg *sync.WaitGroup) {
 				panic("Invalid character in JSON data: " + string([]byte{b}))
 			}
 		}
+		c = Course{} // zero out the reused course
 	}
 }

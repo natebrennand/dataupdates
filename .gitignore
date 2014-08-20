@@ -1,7 +1,10 @@
 
 settings.sh
 
+dataupdates
+
 
 *.json
 *.sql
 
+.vagrant
