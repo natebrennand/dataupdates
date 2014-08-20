@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+// readByteSkippingSpace() reads through an io.Reader until a character that is
+// not whitespace is encountered
 func readByteSkippingSpace(r io.Reader) (b byte, err error) {
 	buf := make([]byte, 1)
 	for {
@@ -26,13 +28,17 @@ func readByteSkippingSpace(r io.Reader) (b byte, err error) {
 	}
 }
 
-func parseCourses(jsonFile string, cChan chan Course, wg *sync.WaitGroup) {
+// parseCourses() reads in 'jsonFileName' and parses courses while sending them down
+// the 'cChan' channel for processing. 'wg' is marked as done when the end of the
+// json list is found.
+func parseCourses(jsonFileName string, cChan chan Course, wg *sync.WaitGroup) {
 	// open file for parsing
-	file, err := os.OpenFile(jsonFile, os.O_RDONLY, 0644)
+	file, err := os.OpenFile(jsonFileName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Fatalf("Failed to open file, %s, with error: %s", jsonFile, err.Error())
+		log.Fatalf("Failed to open file, %s, with error: %s", jsonFileName, err.Error())
 	}
-	//defer file.Close()
+
+	//defer file.Close() to close after all parsing is finished
 	r := io.Reader(file)
 
 	// Skip whitespace & '['
@@ -42,6 +48,7 @@ func parseCourses(jsonFile string, cChan chan Course, wg *sync.WaitGroup) {
 		panic("Input is not a JSON array")
 	}
 
+	// now we start decoding each of the courses
 	var c Course
 	for {
 		dec := json.NewDecoder(r)
@@ -63,7 +70,7 @@ func parseCourses(jsonFile string, cChan chan Course, wg *sync.WaitGroup) {
 			case ',':
 				continue
 			case ']':
-				log.Print("done reading")
+				log.Print("done reading json list")
 				close(cChan)
 				wg.Done()
 				return
@@ -71,6 +78,6 @@ func parseCourses(jsonFile string, cChan chan Course, wg *sync.WaitGroup) {
 				panic("Invalid character in JSON data: " + string([]byte{b}))
 			}
 		}
-		c = Course{} // zero out the reused course
+		c = Course{} // zero out the course for reuse
 	}
 }

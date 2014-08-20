@@ -7,12 +7,11 @@ import (
 	"os"
 	"sync"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // register the postgres driver w/ sql
 )
 
 const (
-	courses_table   = "courses_t"
-	courses_table_2 = "courses_v2_t"
+	MAX_HTTP_REQUESTS = 10 // number of open HTTP requests to the bulletin
 )
 
 func getEnvVar(name string) string {
@@ -38,48 +37,6 @@ func connectPG() *sql.DB {
 	return db
 }
 
-func dbWorker(db *sql.DB, readyCourse chan Course, wg *sync.WaitGroup, descCache map[string]string) {
-	var (
-		c              Course
-		more           bool
-		courseInserted = make(map[string]interface{})
-	)
-
-	for {
-		c, more = <-readyCourse
-		if c.CourseFull == "" {
-			log.Printf("failed to insert course, %s", c.Course)
-			continue
-		}
-
-		// now we must get the description
-		if err := c.getDescription(); err != nil {
-			log.Printf("Could not get description for %s, %s", c.Course, err.Error())
-		}
-
-		if err := c.Insert(db); err != nil {
-			log.Printf("While inserting course => %#v\n, database error => %s", c, err.Error())
-		}
-
-		if err := c.InsertSection(db); err != nil {
-			log.Printf("Failed to insert section, %s, err => %s", c.SectionFull, err.Error())
-		}
-
-		if _, exists := courseInserted[c.CourseFull]; !exists {
-			if err := c.InsertCourse2(db); err != nil {
-				log.Printf("Failed to insert course_v2, %s, err => %s", c.CourseFull, err.Error())
-			}
-			fmt.Println(c.CourseFull)
-			courseInserted[c.CourseFull] = 0
-		}
-
-		log.Printf("Saving %s to the db\n", c.Course)
-		if !more {
-			wg.Done()
-		}
-	}
-}
-
 func main() {
 	if len(os.Args) != 2 {
 		panic("must pass path to JSON file as an argument")
@@ -91,32 +48,27 @@ func main() {
 	db := connectPG()
 	defer db.Close()
 
-	// parse the json file of courses
+	// parse the json file of Courses
 	courseChan := make(chan Course)
 	go parseCourses(jsonFile, courseChan, &wg)
 
-	// readyCourse receives courses that are ready for database insertion
-	readyCourse := make(chan Course, 50)
-
-	// db worker reads from readyCourse and inserts to the database
+	// db worker reads from dbQueue and inserts to the database
 	wg.Add(1)
+	dbQueue := make(chan Course, 50)
 	descCache := make(map[string]string) //  CourseFull --> description
-	for _ = range make([]interface{}, 1) {
-		go dbWorker(db, readyCourse, &wg, descCache)
-	}
+	go dbWorker(db, dbQueue, &wg, descCache)
 
 	// process courses as they come from the parser
 	var c Course
 	var more bool
 	for {
+		// reads in a course that is ready for insertion
 		c, more = <-courseChan
-		// uncomment to get description and insert to DB
-		// TODO: consider ways to send courses in sequential groups
-		readyCourse <- c
+		// sends course to be inserted to the database
+		dbQueue <- c
 		if !more {
 			break
 		}
-		log.Printf("prepped, %s", c.Course)
 	}
 	wg.Wait()
 }
