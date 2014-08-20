@@ -18,7 +18,6 @@ func TestGetDescription(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		t.Error(parsePage(page))
 		if (parsePage(page) == "") == hasDesc {
 			if hasDesc {
 				t.Errorf("Expected to find a description in %s", fn)

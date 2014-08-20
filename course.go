@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	httpSemaphore = make(chan int, MAX_HTTP_REQUESTS)               // used to limit the # of HTTP requests at a time
+	httpSemaphore = make(chan int, MaxHTTPRequests)                 // used to limit the # of HTTP requests at a time
 	re            = regexp.MustCompile(`(\w{4})(\w{4})(\w)(\w{3})`) // EXAMPLE:  COMS4995W001 => [COMS, 4995, W, 001]
 	tags          = regexp.MustCompile(`(?s:<.+?>)`)                // meant to match all HTML tags
 	// TODO: repent for this hidiousness
@@ -94,8 +94,7 @@ func (c *Course) setCourseFull() {
 
 	// set up the "Course Full"
 	dept, deptNum, symbol := res[1], res[2], res[3]
-	courseFull := dept + symbol + deptNum
-	c.CourseFull = courseFull
+	c.CourseFull = dept + symbol + deptNum
 }
 
 func (c *Course) getBulletinURL() string {
@@ -153,9 +152,7 @@ func (c *Course) getDescription() error {
 	// parse the page for the description
 	courseDesc := parsePage(bodyBytes)
 	if courseDesc == "" { // set to 'no description' if there is not one
-		log.Printf("no description for course, %s", c.Course)
-		log.Printf(url)
-		log.Print(string(bodyBytes))
+		log.Printf("no description found for course, %s %s", c.Term, c.CourseFull)
 		c.Description = "no description"
 		return nil
 	}
@@ -187,9 +184,9 @@ type Course2 struct {
 	SubtermCode      string `json:",omitempty"`
 	SubtermName      string `json:",omitempty"`
 	EnrollmentStatus string `json:",omitempty"`
-	NumFixedUnits    string `json:",omitempty,`
-	MinUnits         string `json:",omitempty,`
-	MaxUnits         string `json:",omitempty,`
+	NumFixedUnits    string `json:",omitempty"`
+	MinUnits         string `json:",omitempty"`
+	MaxUnits         string `json:",omitempty"`
 	CourseTitle      string `json:",omitempty"`
 	CourseSubtitle   string `json:",omitempty"`
 	Approval         string `json:",omitempty"`

@@ -11,13 +11,14 @@ import (
 )
 
 const (
-	MAX_HTTP_REQUESTS = 10 // number of open HTTP requests to the bulletin
+	// MaxHTTPRequests dicatates the number of open HTTP requests to the bulletin
+	MaxHTTPRequests = 10
 )
 
 func getEnvVar(name string) string {
 	val := os.Getenv(name)
 	if val == "" {
-		log.Fatal(fmt.Sprintf("%s must be set"), name)
+		log.Fatal(fmt.Sprintf("%s must be set", name))
 	}
 	return val
 }

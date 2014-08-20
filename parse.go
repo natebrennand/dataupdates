@@ -51,6 +51,7 @@ func parseCourses(jsonFileName string, cChan chan Course, wg *sync.WaitGroup) {
 	// now we start decoding each of the courses
 	var c Course
 	for {
+		c = Course{} // zero out the course for reuse
 		dec := json.NewDecoder(r)
 		if err := dec.Decode(&c); err == io.EOF {
 			log.Print("finished parsing json file")
@@ -63,7 +64,7 @@ func parseCourses(jsonFileName string, cChan chan Course, wg *sync.WaitGroup) {
 
 		r = io.MultiReader(dec.Buffered(), r)
 		if b, err := readByteSkippingSpace(r); err != nil {
-			log.Printf("broken, hit %s, err => %s", b, err.Error())
+			log.Printf("broken, hit %s, err => %s", string(b), err.Error())
 			panic(err)
 		} else {
 			switch b {
@@ -78,6 +79,5 @@ func parseCourses(jsonFileName string, cChan chan Course, wg *sync.WaitGroup) {
 				panic("Invalid character in JSON data: " + string([]byte{b}))
 			}
 		}
-		c = Course{} // zero out the course for reuse
 	}
 }

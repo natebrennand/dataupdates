@@ -47,6 +47,7 @@ func dbWorker(db *sql.DB, readyCourse chan Course, wg *sync.WaitGroup, descCache
 	}
 }
 
+// Insert inserts the Course to the 'courses_t' database
 func (c Course) Insert(db *sql.DB) error {
 	query := `INSERT INTO courses_t (
 	course,
@@ -210,6 +211,7 @@ func (c Course) Insert(db *sql.DB) error {
 	return nil
 }
 
+// InsertCourse2 inserts information from the course to the 'courses_v2_t' database
 func (c Course) InsertCourse2(db *sql.DB) error {
 	query := `INSERT INTO courses_v2_t (
 	course,
@@ -261,8 +263,8 @@ func (c Course) InsertCourse2(db *sql.DB) error {
 	_, err := db.Exec(
 		query,
 		c.Course,
-		c.PrefixName,
 		c.CourseFull,
+		c.PrefixName,
 		c.DivisionCode,
 		c.DivisionName,
 		c.SchoolCode,
@@ -290,6 +292,7 @@ func (c Course) InsertCourse2(db *sql.DB) error {
 	return nil
 }
 
+// InsertSection inserts information from the course to the 'sections_v2_t' database
 func (c Course) InsertSection(db *sql.DB) error {
 	query := `INSERT INTO sections_v2_t (
 	course,
