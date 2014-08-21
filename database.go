@@ -25,6 +25,7 @@ func dbWorker(db *sql.DB, readyCourse chan Course, wg *sync.WaitGroup, descCache
 		if err := c.getDescription(); err != nil {
 			log.Printf("Could not get description for %s, %s", c.Course, err.Error())
 		}
+		fmt.Print(".")
 
 		if err := c.Insert(db); err != nil {
 			log.Printf("While inserting course => %#v\n, database error => %s", c, err.Error())

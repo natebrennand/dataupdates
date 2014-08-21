@@ -1,23 +1,25 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"log"
 
-	"github.com/coopernurse/gorp"
+	"github.com/natebrennand/pg_array"
 )
 
 type esData struct {
-	Course         string   `db:"course"`     // EX: ZULU336
-	CourseFull     string   `db:"coursefull"` // EX: ZULUW336
-	CourseSubtitle string   `db:"coursesubtitle"`
-	CourseTitle    string   `db:"coursetitle"`
-	Description    string   `db:"description"`
-	Term           string   `db:"term"`
-	CallNumber     []int    `db:"callnumber"`
-	Instructor     []string `db:"instructor"`
+	Course         string                  `db:"course"`     // EX: ZULU336
+	CourseFull     string                  `db:"coursefull"` // EX: ZULUW336
+	CourseSubtitle string                  `db:"coursesubtitle"`
+	CourseTitle    string                  `db:"coursetitle"`
+	Description    string                  `db:"description"`
+	Term           pg_array.SqlIntArray    `db:"term"`
+	CallNumber     pg_array.SqlIntArray    `db:"callnumber"`
+	Instructor     pg_array.SqlStringArray `db:"instructor"`
 }
 
-var query = `
+var esQuery = `
 SELECT
 	C.course,
 	C.coursefull,
@@ -37,11 +39,32 @@ SELECT
 	C.description;
 `
 
-func getESData(db *gorp.DbMap) []esData {
+func getESData(db *sql.DB) []esData {
 	var esDataList []esData
-	_, err := db.Select(&esDataList, query)
+	rows, err := db.Query(esQuery)
 	if err != nil {
-		log.Printf("Error while querying for ES data => %s", err.Error())
+		log.Fatalf("Error while querying Postgres for ES data => %s", err.Error())
 	}
+	defer rows.Close()
+
+	// process records
+	var data esData
+	for rows.Next() {
+		err := rows.Scan(
+			&data.Course,
+			&data.CourseFull,
+			&data.CourseSubtitle,
+			&data.Description,
+			&data.CourseFull,
+			&data.Term,
+			&data.CallNumber,
+			&data.Instructor,
+		)
+		if err != nil {
+			log.Fatalf("Error while processing PG data => %s", err.Error())
+		}
+		fmt.Println(data)
+	}
+
 	return esDataList
 }

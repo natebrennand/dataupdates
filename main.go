@@ -72,4 +72,6 @@ func main() {
 		}
 	}
 	wg.Wait()
+
+	getESData(db)
 }
