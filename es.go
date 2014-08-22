@@ -156,7 +156,7 @@ func updateES(db *sql.DB) []esData {
 
 func deleteIndex() error {
 	log.Println("Attempting to delete ES index")
-	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", esURL, esIndex), nil)
+	req, err := http.NewRequest("DELETE", esURL+esIndex, nil)
 
 	client := http.Client{}
 	resp, err := client.Do(req)
@@ -185,7 +185,7 @@ func insertEsData(data bulkInsert) error {
 	encoder.Encode(data)
 
 	client := http.Client{}
-	resp, err := client.Post(fmt.Sprintf("%s_bulk", esURL), "application/json", &buf)
+	resp, err := client.Post(esURL+"_bulk", "application/json", &buf)
 	if err != nil {
 		return fmt.Errorf("Failure stuffing data into ES => %s", err.Error())
 	} else if resp.StatusCode/100 != 2 {

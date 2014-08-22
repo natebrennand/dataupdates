@@ -1,11 +1,17 @@
 language: go
 go: 1.2
+env:
+  globaL:
+    - ES_HOST=localhost
+    - ES_PORT=9200
+    - ES_INDEX=data
 before_install:
   - go get code.google.com/p/go.tools/cmd/vet
   - go get github.com/golang/lint/golint
 install:
   - go get -d -v -t ./...
 script:
+  - go test ./...
   - go vet ./...
   - $HOME/gopath/bin/golint **/*.go
   - LINTED=$($HOME/gopath/bin/golint **/*.go| wc -l); if [ $LINTED -gt 0 ]; then echo "golint - $LINTED statements not up to spec, please run golint and follow the suggestions." && exit 1; fi
