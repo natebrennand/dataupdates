@@ -97,6 +97,12 @@ SELECT
 `
 
 func getESData(db *sql.DB) []esData {
+	// remove the existing ES index
+	if err := deleteIndex(); err != nil {
+		log.Printf("WARNING: %s", err.Error())
+	}
+
+	// query for the new data used in the index
 	var esDataList []esData
 	rows, err := db.Query(esQuery)
 	if err != nil {
@@ -104,10 +110,9 @@ func getESData(db *sql.DB) []esData {
 	}
 	defer rows.Close()
 
+	// process each record to be inserted to ES
 	var batchBuffer = make([]bulkItem, batchSize)
 	var bufferIndex = 0
-
-	// process records
 	var data esData
 	for rows.Next() {
 		err := rows.Scan(
@@ -124,6 +129,7 @@ func getESData(db *sql.DB) []esData {
 			log.Fatalf("Error while processing PG data => %s", err.Error())
 		}
 
+		// add to buffer
 		batchBuffer[bufferIndex] = data.NewBulkItem()
 		bufferIndex++
 		if bufferIndex == batchSize {
