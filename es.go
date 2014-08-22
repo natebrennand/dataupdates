@@ -108,6 +108,9 @@ func updateES(db *sql.DB) []esData {
 	if err := deleteIndex(); err != nil {
 		log.Printf("WARNING: %s", err.Error())
 	}
+	if err := createIndex(); err != nil {
+		log.Fatalf("WARNING: %s", err.Error())
+	}
 
 	// query for the new data used in the index
 	var esDataList []esData
@@ -170,8 +173,29 @@ func deleteIndex() error {
 		log.Println(string(bodyBytes))
 		return fmt.Errorf("Problem deleting ES index => status code = %d", resp.StatusCode)
 	}
-
 	log.Println("ES index deleted")
+	return nil
+}
+
+func createIndex() error {
+	log.Println("Attempting to create new ES Index")
+
+	req, err := http.NewRequest("PUT", esURL+esIndex, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create PUT request => %s", err.Error())
+	}
+
+	client := http.Client{}
+	if resp, err := client.Do(req); err != nil {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Failed to read in response body => %s\n", err.Error())
+		}
+		log.Println(string(bodyBytes))
+		return fmt.Errorf("Failed to create new ES Index => %s", err.Error())
+	}
+
+	log.Printf("ES Index, %s, created", esIndex)
 	return nil
 }
 
