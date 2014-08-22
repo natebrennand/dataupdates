@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -43,9 +44,13 @@ type esMetadata struct {
 	ID    string `json:"_id"` // will be the 'Course' attribute
 }
 
+type esAction struct {
+	Index esMetadata `json:"index"`
+}
+
 type bulkItem struct {
-	MetaData esMetadata
-	Data     esData
+	Index esAction
+	Data  esData
 }
 
 type bulkInsert []bulkItem
@@ -55,7 +60,7 @@ func (b bulkInsert) MarshalJSON() ([]byte, error) {
 	var encoder = json.NewEncoder(&buf)
 
 	for _, item := range b {
-		if err := encoder.Encode(item.MetaData); err != nil {
+		if err := encoder.Encode(item.Index); err != nil {
 			return []byte{}, fmt.Errorf("Failed to encode MetaData => %s", err.Error())
 		}
 		if err := encoder.Encode(item.Data); err != nil {
@@ -67,10 +72,12 @@ func (b bulkInsert) MarshalJSON() ([]byte, error) {
 
 func (d esData) NewBulkItem() bulkItem {
 	return bulkItem{
-		MetaData: esMetadata{
-			Index: esIndex,
-			Type:  esType,
-			ID:    d.Course,
+		Index: esAction{
+			Index: esMetadata{
+				Index: esIndex,
+				Type:  esType,
+				ID:    d.Course,
+			},
 		},
 		Data: d,
 	}
@@ -156,6 +163,11 @@ func deleteIndex() error {
 	if err != nil {
 		return fmt.Errorf("Problem deleting ES index => %s", err.Error())
 	} else if resp.StatusCode/100 != 2 {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Failed to read in response body => %s\n", err.Error())
+		}
+		log.Println(string(bodyBytes))
 		return fmt.Errorf("Problem deleting ES index => status code = %d", resp.StatusCode)
 	}
 
@@ -177,6 +189,11 @@ func insertEsData(data bulkInsert) error {
 	if err != nil {
 		return fmt.Errorf("Failure stuffing data into ES => %s", err.Error())
 	} else if resp.StatusCode/100 != 2 {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Failed to read in response body => %s\n", err.Error())
+		}
+		log.Println(string(bodyBytes))
 		return fmt.Errorf("Problem stuffing data into  ES => status code = %d", resp.StatusCode)
 	}
 
