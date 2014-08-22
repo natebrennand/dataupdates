@@ -28,14 +28,16 @@ func init() {
 }
 
 type esData struct {
-	Course         string // EX: ZULU336
-	CourseFull     string // EX: ZULUW336
-	CourseSubtitle string
-	CourseTitle    string
-	Description    string
-	Term           pg_array.SqlIntArray
-	CallNumber     pg_array.SqlIntArray
-	Instructor     pg_array.SqlStringArray
+	Course          string // EX: ZULU336
+	CourseFull      string // EX: ZULUW336
+	DespartmentCode string
+	DespartmentName string
+	CourseTitle     string
+	CourseSubtitle  string
+	Description     string
+	Term            pg_array.SqlIntArray
+	CallNumber      pg_array.SqlIntArray
+	Instructor      pg_array.SqlStringArray
 }
 
 type esMetadata struct {
@@ -87,8 +89,10 @@ var esQuery = `
 SELECT
 	C.course,
 	C.coursefull,
-	C.coursesubtitle,
+	C.departmentcode,
+	C.departmentname,
 	C.coursetitle,
+	C.coursesubtitle,
 	C.description,
 	array_agg(DISTINCT S.term) as "term",
 	array_agg(DISTINCT S.callnumber) as "callnumber",
@@ -98,8 +102,10 @@ SELECT
  GROUP BY
 	C.course,
 	C.coursefull,
-	C.coursesubtitle,
+	C.departmentcode,
+	C.departmentname,
 	C.coursetitle,
+	C.coursesubtitle,
 	C.description;
 `
 
@@ -128,9 +134,11 @@ func updateES(db *sql.DB) []esData {
 		err := rows.Scan(
 			&data.Course,
 			&data.CourseFull,
+			&data.DespartmentCode,
+			&data.DespartmentName,
+			&data.CourseTitle,
 			&data.CourseSubtitle,
 			&data.Description,
-			&data.CourseFull,
 			&data.Term,
 			&data.CallNumber,
 			&data.Instructor,
