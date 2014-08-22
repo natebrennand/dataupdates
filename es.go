@@ -204,12 +204,19 @@ func insertEsData(data bulkInsert) error {
 		return nil
 	}
 
-	var buf bytes.Buffer
-	var encoder = json.NewEncoder(&buf)
-	encoder.Encode(data)
+	/*
+		var buf bytes.Buffer
+		var encoder = json.NewEncoder(&buf)
+		encoder.Encode(data)
+	*/
+	jsonBytes, err := data.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("failed to properly marshal bulk insert json => %s", err.Error())
+	}
+	buf := bytes.NewBuffer(jsonBytes)
 
 	client := http.Client{}
-	req, err := http.NewRequest("POST", esURL+"_bulk", &buf)
+	req, err := http.NewRequest("POST", esURL+"_bulk", buf)
 	if err != nil {
 		return fmt.Errorf("Failed to form HTTP request.")
 	}
