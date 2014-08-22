@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -39,39 +40,45 @@ func connectPG() *sql.DB {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		panic("must pass path to JSON file as an argument")
-	}
-	jsonFile := os.Args[1]
-	var wg sync.WaitGroup
+	filename := flag.String("file", "./doc.json", "JSON file to be read in for processing")
+	skipPG := flag.Bool("skip-pg", false, "Skip running the PG database updates")
+	skipES := flag.Bool("skip-es", false, "Skip running the ES index updates")
+	flag.Parse()
 
 	// open database connection
 	db := connectPG()
 	defer db.Close()
 
-	// parse the json file of Courses
-	courseChan := make(chan Course)
-	go parseCourses(jsonFile, courseChan, &wg)
+	if !*skipPG { // optionally skip postgres updates
+		jsonFile := *filename
+		var wg sync.WaitGroup
 
-	// db worker reads from dbQueue and inserts to the database
-	wg.Add(1)
-	dbQueue := make(chan Course, 50)
-	descCache := make(map[string]string) //  CourseFull --> description
-	go dbWorker(db, dbQueue, &wg, descCache)
+		// parse the json file of Courses
+		courseChan := make(chan Course)
+		go parseCourses(jsonFile, courseChan, &wg)
 
-	// process courses as they come from the parser
-	var c Course
-	var more bool
-	for {
-		// reads in a course that is ready for insertion
-		c, more = <-courseChan
-		// sends course to be inserted to the database
-		dbQueue <- c
-		if !more {
-			break
+		// db worker reads from dbQueue and inserts to the database
+		wg.Add(1)
+		dbQueue := make(chan Course, 50)
+		descCache := make(map[string]string) //  CourseFull --> description
+		go dbWorker(db, dbQueue, &wg, descCache)
+
+		// process courses as they come from the parser
+		var c Course
+		var more bool
+		for {
+			// reads in a course that is ready for insertion
+			c, more = <-courseChan
+			// sends course to be inserted to the database
+			dbQueue <- c
+			if !more {
+				break
+			}
 		}
+		wg.Wait()
 	}
-	wg.Wait()
 
-	getESData(db)
+	if !*skipES { // optionally skip elastic search updates
+		updateES(db)
+	}
 }

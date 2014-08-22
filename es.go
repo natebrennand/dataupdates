@@ -96,7 +96,7 @@ SELECT
 	C.description;
 `
 
-func getESData(db *sql.DB) []esData {
+func updateES(db *sql.DB) []esData {
 	// remove the existing ES index
 	if err := deleteIndex(); err != nil {
 		log.Printf("WARNING: %s", err.Error())
@@ -133,8 +133,12 @@ func getESData(db *sql.DB) []esData {
 		batchBuffer[bufferIndex] = data.NewBulkItem()
 		bufferIndex++
 		if bufferIndex == batchSize {
-			insertEsData(bulkInsert(batchBuffer))
+			log.Printf("Inserting batch of %d\n", batchSize)
+			err := insertEsData(bulkInsert(batchBuffer))
 			bufferIndex = 0
+			if err != nil {
+				log.Printf("WARNING: failed to run batch insert => %s\n", err.Error())
+			}
 		}
 	}
 	// insert remainder of buffer
@@ -144,6 +148,7 @@ func getESData(db *sql.DB) []esData {
 }
 
 func deleteIndex() error {
+	log.Println("Attempting to delete ES index")
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", esURL, esIndex), nil)
 
 	client := http.Client{}
@@ -153,6 +158,8 @@ func deleteIndex() error {
 	} else if resp.StatusCode/100 != 2 {
 		return fmt.Errorf("Problem deleting ES index => status code = %d", resp.StatusCode)
 	}
+
+	log.Println("ES index deleted")
 	return nil
 }
 

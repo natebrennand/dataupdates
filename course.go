@@ -152,7 +152,6 @@ func (c *Course) getDescription() error {
 	// parse the page for the description
 	courseDesc := parsePage(bodyBytes)
 	if courseDesc == "" { // set to 'no description' if there is not one
-		log.Printf("no description found for course, %s %s", c.Term, c.CourseFull)
 		c.Description = "no description"
 		return nil
 	}
