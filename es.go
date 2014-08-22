@@ -28,18 +28,18 @@ func init() {
 }
 
 type esData struct {
-	Course         string                  `db:"course"`     // EX: ZULU336
-	CourseFull     string                  `db:"coursefull"` // EX: ZULUW336
-	CourseSubtitle string                  `db:"coursesubtitle"`
-	CourseTitle    string                  `db:"coursetitle"`
-	Description    string                  `db:"description"`
-	Term           pg_array.SqlIntArray    `db:"term"`
-	CallNumber     pg_array.SqlIntArray    `db:"callnumber"`
-	Instructor     pg_array.SqlStringArray `db:"instructor"`
+	Course         string // EX: ZULU336
+	CourseFull     string // EX: ZULUW336
+	CourseSubtitle string
+	CourseTitle    string
+	Description    string
+	Term           pg_array.SqlIntArray
+	CallNumber     pg_array.SqlIntArray
+	Instructor     pg_array.SqlStringArray
 }
 
 type esMetadata struct {
-	Index string `json:"es_index"`
+	Index string `json:"_index"`
 	Type  string `json:"_type"`
 	ID    string `json:"_id"` // will be the 'Course' attribute
 }
