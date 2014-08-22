@@ -35,9 +35,9 @@ type esData struct {
 	CourseTitle     string
 	CourseSubtitle  string
 	Description     string
-	Term            pg_array.SqlIntArray
-	CallNumber      pg_array.SqlIntArray
-	Instructor      pg_array.SqlStringArray
+	Term            pgarray.SqlIntArray
+	CallNumber      pgarray.SqlIntArray
+	Instructor      pgarray.SqlStringArray
 }
 
 type esMetadata struct {

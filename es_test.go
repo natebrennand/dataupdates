@@ -14,13 +14,13 @@ var (
 		CourseSubtitle: "test course subtitle",
 		CourseTitle:    "test",
 		Description:    "a course for testing",
-		Term: pg_array.SqlIntArray{
+		Term: pgarray.SqlIntArray{
 			Data: []int64{1, 2, 3},
 		},
-		CallNumber: pg_array.SqlIntArray{
+		CallNumber: pgarray.SqlIntArray{
 			Data: []int64{4, 5, 6},
 		},
-		Instructor: pg_array.SqlStringArray{
+		Instructor: pgarray.SqlStringArray{
 			Data: []string{"teacher1", "teacher2"},
 		},
 	}
