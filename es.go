@@ -153,6 +153,7 @@ func updateES(db *sql.DB) []esData {
 	}
 	// insert remainder of buffer
 	insertEsData(bulkInsert(batchBuffer[0:bufferIndex]))
+	log.Printf("Inserting batch of %d\n", bufferIndex)
 
 	return esDataList
 }
@@ -204,12 +205,18 @@ func insertEsData(data bulkInsert) error {
 		return nil
 	}
 
-	var buf bytes.Buffer
-	var encoder = json.NewEncoder(&buf)
-	encoder.Encode(data)
+	jsonBytes, err := data.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("failed to properly marshal bulk insert json => %s", err.Error())
+	}
+	buf := bytes.NewBuffer(jsonBytes)
 
 	client := http.Client{}
-	resp, err := client.Post(esURL+"_bulk", "application/json", &buf)
+	req, err := http.NewRequest("POST", esURL+"_bulk", buf)
+	if err != nil {
+		return fmt.Errorf("Failed to form HTTP request.")
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("Failure stuffing data into ES => %s", err.Error())
 	} else if resp.StatusCode/100 != 2 {
