@@ -66,12 +66,12 @@ func TestBulkInsertMarshal2(t *testing.T) {
 // Newlines are expected after each of the json segments
 //
 // Spec: http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/docs-bulk.html
-var expectedJSON = `{"index":{"es_index":"test","_type":"courses","_id":"123"}}
+var expectedJSON = `{"index":{"_index":"test","_type":"courses","_id":"123"}}
 {"Course":"test","CourseFull":"123","CourseSubtitle":"test course subtitle","CourseTitle":"test","Description":"a course for testing","Term":[1,2,3],"CallNumber":[4,5,6],"Instructor":["teacher1","teacher2"]}
 `
 
-var expectedJSON2 = `{"index":{"es_index":"test","_type":"courses","_id":"123"}}
+var expectedJSON2 = `{"index":{"_index":"test","_type":"courses","_id":"123"}}
 {"Course":"test","CourseFull":"123","CourseSubtitle":"test course subtitle","CourseTitle":"test","Description":"a course for testing","Term":[1,2,3],"CallNumber":[4,5,6],"Instructor":["teacher1","teacher2"]}
-{"index":{"es_index":"test","_type":"courses","_id":"123"}}
+{"index":{"_index":"test","_type":"courses","_id":"123"}}
 {"Course":"test","CourseFull":"123","CourseSubtitle":"test course subtitle","CourseTitle":"test","Description":"a course for testing","Term":[1,2,3],"CallNumber":[4,5,6],"Instructor":["teacher1","teacher2"]}
 `
