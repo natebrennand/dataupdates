@@ -31,15 +31,15 @@ func dbWorker(db *sql.DB, readyCourse chan Course, wg *sync.WaitGroup, descCache
 			log.Printf("While inserting course => %#v\n, database error => %s", c, err.Error())
 		}
 
-		if err := c.InsertSection(db); err != nil {
-			log.Printf("Failed to insert section, %s, err => %s", c.SectionFull, err.Error())
-		}
-
-		if _, exists := courseInserted[c.CourseFull]; !exists {
+		if _, exists := courseInserted[c.ShortCourse]; !exists {
 			if err := c.InsertCourse2(db); err != nil {
 				log.Printf("Failed to insert course_v2, %s, err => %s", c.CourseFull, err.Error())
 			}
-			courseInserted[c.CourseFull] = 0
+			courseInserted[c.ShortCourse] = 0
+		}
+
+		if err := c.InsertSection(db); err != nil {
+			log.Printf("Failed to insert section, %s, err => %s", c.SectionFull, err.Error())
 		}
 
 		if !more {
@@ -52,10 +52,10 @@ func dbWorker(db *sql.DB, readyCourse chan Course, wg *sync.WaitGroup, descCache
 func (c Course) Insert(db *sql.DB) error {
 	query := `INSERT INTO courses_t (
 	course,
-	ChargeMsg1,
-	ChargeAmt1,
-	ChargeMsg2,
-	ChargeAmt2,
+	chargeMsg1,
+	chargeAmt1,
+	chargeMsg2,
+	chargeAmt2,
 	prefixname,
 	divisioncode,
 	divisionname,
@@ -263,7 +263,7 @@ func (c Course) InsertCourse2(db *sql.DB) error {
 	)`
 	_, err := db.Exec(
 		query,
-		c.Course,
+		c.ShortCourse,
 		c.CourseFull,
 		c.PrefixName,
 		c.DivisionCode,
@@ -298,11 +298,6 @@ func (c Course) InsertSection(db *sql.DB) error {
 	query := `INSERT INTO sections_v2_t (
 	course,
 	term,
-	meetson1,
-	starttime1,
-	endtime1,
-	building1,
-	room1,
 	callnumber,
 	campuscode,
 	campusname,
@@ -311,7 +306,17 @@ func (c Course) InsertSection(db *sql.DB) error {
 	typecode,
 	typename,
 	meets1,
+	meetson1,
+	starttime1,
+	endtime1,
+	building1,
+	room1,
 	meets2,
+	meetson2,
+	starttime2,
+	endtime2,
+	building2,
+	room2,
 	meets3,
 	meets4,
 	meets5,
@@ -348,17 +353,18 @@ func (c Course) InsertSection(db *sql.DB) error {
 		$23,
 		$24,
 		$25,
-		$26
+		$26,
+		$27,
+		$28,
+		$29,
+		$30,
+		$31
 	)`
+	// go to 34
 	_, err := db.Exec(
 		query,
-		c.Course,
+		c.ShortCourse,
 		c.Term,
-		c.MeetsOn1,
-		c.StartTime1,
-		c.EndTime1,
-		c.Building1,
-		c.Room1,
 		c.CallNumber,
 		c.CampusCode,
 		c.CampusName,
@@ -366,8 +372,21 @@ func (c Course) InsertSection(db *sql.DB) error {
 		c.MaxSize,
 		c.TypeCode,
 		c.TypeName,
+
 		c.Meets1,
+		c.MeetsOn1,
+		c.StartTime1,
+		c.EndTime1,
+		c.Building1,
+		c.Room1,
+
 		c.Meets2,
+		c.MeetsOn2,
+		c.StartTime2,
+		c.EndTime2,
+		c.Building2,
+		c.Room1,
+
 		c.Meets3,
 		c.Meets4,
 		c.Meets5,

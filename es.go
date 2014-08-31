@@ -27,6 +27,7 @@ func init() {
 	)
 }
 
+// JSON is expected to be uppercase!
 type esData struct {
 	Course          string // EX: ZULU336
 	CourseFull      string // EX: ZULUW336

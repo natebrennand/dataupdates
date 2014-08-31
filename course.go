@@ -75,6 +75,18 @@ func (c *Course) fill() {
 		c.Room1 = room.parse(s)
 	}
 
+	if c.Meets2 == "" {
+		c.StartTime2 = "00:00:00"
+		c.EndTime2 = "00:00:00"
+	} else {
+		s := c.Meets2
+		c.MeetsOn2 = meetsOn.parse(s)
+		c.StartTime2 = parseDate(startTime.parse(s))
+		c.EndTime2 = parseDate(endTime.parse(s))
+		c.Building2 = building.parse(s)
+		c.Room2 = room.parse(s)
+	}
+
 	c.NumFixedUnits = zeroInt(c.NumFixedUnits)
 	c.MinUnits = zeroInt(c.MinUnits)
 	c.MaxUnits = zeroInt(c.MaxUnits)
@@ -83,6 +95,7 @@ func (c *Course) fill() {
 	c.MaxSize = zeroInt(c.MaxSize)
 
 	c.setCourseFull()
+	c.setBulletinURL()
 }
 
 // parses the 'CourseFull' attribute
@@ -95,14 +108,15 @@ func (c *Course) setCourseFull() {
 	// set up the "Course Full"
 	dept, deptNum, symbol := res[1], res[2], res[3]
 	c.CourseFull = dept + symbol + deptNum
+	c.ShortCourse = dept + deptNum
 }
 
-func (c *Course) getBulletinURL() string {
+func (c *Course) setBulletinURL() {
 	courseRegex := re.FindStringSubmatch(strings.Replace(c.Course, " ", "_", 6))
 	dept, deptNum, symbol, section := courseRegex[1], courseRegex[2], courseRegex[3], courseRegex[4]
 
 	// GOAL: http://www.columbia.edu/cu/bulletin/uwb/subj/COMS/W4995-20143-001/
-	return fmt.Sprintf("http://www.columbia.edu/cu/bulletin/uwb/subj/%s/%s-%s-%s/",
+	c.BulletinURL = fmt.Sprintf("http://www.columbia.edu/cu/bulletin/uwb/subj/%s/%s-%s-%s/",
 		dept,
 		symbol+deptNum,
 		c.Term,
@@ -126,27 +140,26 @@ func parsePage(page []byte) string {
 
 // scrapes the bulletin to get the description of a course
 func (c *Course) getDescription() error {
-	// first find the URL of the course's bulletin page
-	url := c.getBulletinURL()
-
 	// locks while requesting
 	httpSemaphore <- 1
-	resp, err := http.Get(url)
+	resp, err := http.Get(c.BulletinURL)
 	<-httpSemaphore
 
 	// check for errors
 	if err != nil {
-		log.Printf("Error getting bulletin page, %s => %s", url, err.Error())
-		return fmt.Errorf("Error querying bulletin for course, %s", c.Course)
+		c.BulletinURL = ""
+		log.Printf("Error getting bulletin page, %s => %s", c.BulletinURL, err.Error())
+		return fmt.Errorf("HTTP error querying bulletin for course, %s, %s", c.Course, err.Error())
 	} else if resp.StatusCode/100 != 2 {
-		log.Printf("Error getting bulletin page, %s, status code => %d", url, resp.StatusCode)
+		c.BulletinURL = ""
+		log.Printf("%d error getting bulletin page, %s", resp.StatusCode, c.BulletinURL)
 		return fmt.Errorf("Error querying bulletin for course, %s", c.Course)
 	}
 
 	// read in then sanitize description
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error reading in page (%s) body => %s", url, err.Error())
+		log.Printf("Error reading in page (%s) body => %s", c.BulletinURL, err.Error())
 	}
 
 	// parse the page for the description
@@ -163,15 +176,17 @@ func (c *Course) getDescription() error {
 type Course struct {
 	Course2
 	Section
-	Course     string `json:",omitempty"`
-	ChargeMsg1 string `json:",omitempty"`
-	ChargeAmt1 string `json:",omitempty"`
-	ChargeMsg2 string `json:",omitempty"`
-	ChargeAmt2 string `json:",omitempty"`
+	Course      string `json:",omitempty"`
+	ShortCourse string `json:"-"`
+	ChargeMsg1  string `json:",omitempty"`
+	ChargeAmt1  string `json:",omitempty"`
+	ChargeMsg2  string `json:",omitempty"`
+	ChargeAmt2  string `json:",omitempty"`
 }
 
 // Course2 holds all information a Course offered (ignoring section details)
 type Course2 struct {
+	Course           string `json:"-"`
 	CourseFull       string `json:",omitempty"`
 	PrefixName       string `json:",omitempty"`
 	DivisionCode     string `json:",omitempty"`
@@ -197,6 +212,8 @@ type Course2 struct {
 
 // Section holds all information about a course's individual section
 type Section struct {
+	Course          string `json:"-"`
+	BulletinURL     string `json:",omitempty"`
 	SectionFull     string `json:",omitempty"`
 	Term            string `json:",omitempty"`
 	MeetsOn1        string `json:",omitempty"`
@@ -204,6 +221,11 @@ type Section struct {
 	EndTime1        string `json:",omitempty"`
 	Building1       string `json:",omitempty"`
 	Room1           string `json:",omitempty"`
+	MeetsOn2        string `json:",omitempty"`
+	StartTime2      string `json:",omitempty"`
+	EndTime2        string `json:",omitempty"`
+	Building2       string `json:",omitempty"`
+	Room2           string `json:",omitempty"`
 	CallNumber      string `json:",omitempty,int"`
 	CampusCode      string `json:",omitempty"`
 	CampusName      string `json:",omitempty"`
