@@ -197,6 +197,7 @@ func createIndex() error {
 
 	client := http.Client{}
 	if resp, err := client.Do(req); err != nil {
+		defer resp.Body.Close()
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Printf("Failed to read in response body => %s\n", err.Error())
@@ -229,6 +230,7 @@ func insertEsData(data bulkInsert) error {
 	if err != nil {
 		return fmt.Errorf("Failure stuffing data into ES => %s", err.Error())
 	} else if resp.StatusCode/100 != 2 {
+		defer resp.Body.Close()
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Printf("Failed to read in response body => %s\n", err.Error())

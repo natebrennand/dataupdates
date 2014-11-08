@@ -143,6 +143,7 @@ func (c *Course) getDescription() error {
 	// locks while requesting
 	httpSemaphore <- 1
 	resp, err := http.Get(c.BulletinURL)
+	defer resp.Body.Close()
 	<-httpSemaphore
 
 	// check for errors
@@ -186,7 +187,6 @@ type Course struct {
 
 // Course2 holds all information a Course offered (ignoring section details)
 type Course2 struct {
-	Course           string `json:"-"`
 	CourseFull       string `json:",omitempty"`
 	PrefixName       string `json:",omitempty"`
 	DivisionCode     string `json:",omitempty"`
@@ -212,7 +212,6 @@ type Course2 struct {
 
 // Section holds all information about a course's individual section
 type Section struct {
-	Course          string `json:"-"`
 	BulletinURL     string `json:",omitempty"`
 	SectionFull     string `json:",omitempty"`
 	Term            string `json:",omitempty"`
